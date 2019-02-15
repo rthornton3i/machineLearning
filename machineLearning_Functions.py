@@ -28,9 +28,14 @@ def networkSetup(inputs,numHLs,numOuts,minLim=0,maxLim=1):
         allWts.append(wts)
         allNodes.append(nodes)
         
-    return [inputs,allWts,allNodes]
+    outputs = allNodes[-1]
+    del(allNodes[-1])
+        
+    return [inputs,outputs,allWts,allNodes]
 
 def networkTrain(inputs,allWts,allNodes):
     
     
     return [inputs,allWts,allNodes]
+
+

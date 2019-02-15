@@ -4,6 +4,8 @@ import scrape_Functions as sf
 import machineLearning_Functions as ml
 import miscellaneous_Functions as misc
 
+#https://www.python-course.eu/neural_networks_with_python_numpy.php
+
 #stock = 'AAPL'
 #url = 'https://finviz.com/quote.ashx?t=' + stock
 #
@@ -24,4 +26,4 @@ inputs = np.random.randint(-100,100,size=(1,4))
 numHLs = [8,8]
 numOuts = 2
 
-[inputs,wts,nodes] = ml.networkSetup(inputs,numHLs,numOuts)
+[inputs,outputs,wts,nodes] = ml.networkSetup(inputs,numHLs,numOuts)
