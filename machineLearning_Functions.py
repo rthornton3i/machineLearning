@@ -2,21 +2,31 @@ import numpy as np
 
 import miscellaneous_Functions as misc
 
-def layerSetup(inputs,numOutputs,symOpt,curvOpt):
-    inputs = np.reshape(inputs,(np.shape(inputs)[1],1)) if np.shape(inputs)[0] == 1 else inputs
-    inputs = misc.linNorm(inputs)   
-    numInputs = np.shape(inputs)[0]
+def layerSetup(numInputs,numOutputs,layers,symOpt,curvOpt):    
+    networkWts = []
+    networkBias = []
     
-    wts = misc.randArray((numOutputs,numInputs),sym=symOpt)
-    bias = misc.randArray((numOutputs,1),sym=symOpt)
+    layers = np.concatenate((numInputs,layers,numOutputs))
+    numLayers = len(layers) - 1
     
-    outputs = np.dot(wts,inputs).reshape(numOutputs,1) + bias
-    outputs = misc.sigNorm(outputs,curveType=curvOpt)
+    for n in range(numLayers):
+        wts = misc.randArray((layers[n+1],numInputs),sym=symOpt)
+        bias = misc.randArray((numOutputs,1),sym=symOpt)
+        
+        networkWts.append(wts)
+        networkBias.append(bias)
     
     return [inputs,wts,bias,outputs]
 
-def networkSetup(inputs,numNodes,symOpt=False,curvOpt='logistic'):
-    numLayers = len(numNodes)
+def runNetwork():
+    inputs = misc.linNorm(inputs)   
+    outputs = np.dot(wts,inputs).reshape(numOutputs,1) + bias
+    outputs = misc.sigNorm(outputs,curveType=curvOpt)
+    
+def networkSetup(inputs,numNodes,numOutputs,symOpt,curvOpt):
+    nodes = np.concatenate((numNodes,numOutputs))
+    numLayers = len(nodes)
+    
     networkNodes = []
     networkWts = []
     networkBias = []
@@ -24,7 +34,7 @@ def networkSetup(inputs,numNodes,symOpt=False,curvOpt='logistic'):
     for n in range(numLayers):
         layerInputs = inputs
             
-        [layerInputs,layerWts,layerBias,layerOutputs] = layerSetup(layerInputs,numNodes[n],symOpt,curvOpt)
+        [layerInputs,layerWts,layerBias,layerOutputs] = layerSetup(layerInputs,nodes[n],symOpt,curvOpt)
         networkNodes.append(layerInputs)
         networkWts.append(layerWts)
         networkBias.append(layerBias)
@@ -34,47 +44,26 @@ def networkSetup(inputs,numNodes,symOpt=False,curvOpt='logistic'):
 
     return [networkNodes,networkWts,networkBias,networkOutputs]
 
-inputs = [2,5,9,10]
-numNodes = [8,6,2]
-
-[nodes,wts,bias,outputs] = networkSetup(inputs,numNodes,symOpt=True,curvOpt='hyperbolic')
-
-print(outputs)
-
-#def networkSetup(inputs,numHLs,numOuts,minLim=0,maxLim=1):
-#    inputs = np.asarray(inputs)
-#    ht,wd = np.shape(inputs)
-#    
-#    inputs = np.reshape(inputs,(wd,1)) if ht == 1 else inputs
-#    ht,wd = np.shape(inputs)
-#    
-#    inputs = misc.linNorm(inputs,minLim,maxLim)
-#    
-#    allWts = []
-#    allNodes = []
-#    numLoops = len(numHLs)+1
-#    for n in range(numLoops):
-#        if n == 0:
-#            wts = np.random.rand(numHLs[n],ht)
-#            nodes = misc.sigNorm(np.dot(wts,inputs))
-#        elif n == numLoops-1:
-#            wts = np.random.rand(numOuts,numHLs[n-1])
-#            nodes = misc.sigNorm(np.dot(wts,allNodes[n-1]))
-#        else:
-#            wts = np.random.rand(numHLs[n],numHLs[n-1])
-#            nodes = misc.sigNorm(np.dot(wts,allNodes[n-1]))
-#        
-#        allWts.append(wts)
-#        allNodes.append(nodes)
-#        
-#    outputs = allNodes[-1]
-#    del(allNodes[-1])
-#        
-#    return [inputs,outputs,allWts,allNodes]
-
-def networkTrain(inputs,allWts,allNodes):
+def costFunc(outputs,desiredOutputs):
+    desiredOutputs = np.reshape(desiredOutputs,(len(desiredOutputs),1))
     
+    cost = np.sum((outputs - desiredOutputs) ** 2)
+    
+    return cost
+
+def networkAdjust(inputs,wts,bias):
+
     
     return [inputs,allWts,allNodes]
 
 
+inputs = [2,5,9,10]
+
+numNodes = [8,6]
+numOutputs = [3]
+
+desiredOutputs = [0,0,1]
+
+[nodes,wts,bias,outputs] = networkSetup(inputs,numNodes,numOutputs,symOpt=True,curvOpt='logistic')
+cost = costFunc(outputs,desiredOutputs)
+    
