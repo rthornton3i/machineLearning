@@ -9,7 +9,7 @@ def linNorm(data,minLim=0,maxLim=1):
     
     return normData
 
-def sigNorm(data,curveType='logistic',plotOpt=False):
+def sigNorm(data,curveType='logistic'):
     if curveType == 'logistic':
         normData = 1 / (1 + np.exp(-data))
     elif curveType == 'hyperbolic':
@@ -23,11 +23,22 @@ def sigNorm(data,curveType='logistic',plotOpt=False):
     
     return normData
     
-data = np.arange(10)
-test = sigNorm(data,plotOpt=True)
-    
 def randArray(dims,sym=False):
     randNums = np.random.random(size=dims)
     randNums = randNums * 2 - 1 if sym is True else randNums
     
     return randNums
+
+def sigDeriv(data,curveType='logistic'):
+    if curveType == 'logistic':
+        derivData = np.exp(data) / ((1 + np.exp(data)) ** 2)
+    elif curveType == 'hyperbolic':
+        derivData = 1 / (np.cosh(data)**2)
+    elif curveType == 'arctan':
+        derivData = 1 / (1 + data ** 2)
+    elif curveType == 'sqrt':
+        derivData = 1 / ((1 + data ** 2) ** (3/2))
+    else:
+        raise Exception('ERROR: Invalid curve type specified.')
+    
+    return derivData
