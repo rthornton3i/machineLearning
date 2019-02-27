@@ -51,14 +51,14 @@ class NeuralNetwork():
         self.outputs = node
         self.nodes = nodes
     
-    def errorFunc(self,desiredOutputs):
+    def errorFunc(self,desOutputs):
         """Calculate network error based on desired outputs
-            -"desiredOutputs" is an array of size (1,n) where n equals the number of inputs
+            -"desOutputs" is an array of size (1,n) where n equals the number of inputs
         """
         
-        desiredOutputs = np.reshape(desiredOutputs,(len(desiredOutputs),1))
+        desOutputs = np.reshape(desOutputs,(len(desOutputs),1))
         
-        self.error = (1/2) * np.sum((self.outputs - desiredOutputs) ** 2)
+        self.error = (1/2) * np.sum((self.outputs - desOutputs) ** 2)
     
     def adjFunc(self,curveOpt):
         """Run network given current weights and biases to calculate nodes/outputs
@@ -68,61 +68,55 @@ class NeuralNetwork():
         
         self.adjs = self.error * Misc.sigDeriv(self.outputs,curveType=curveOpt)
         
-    def adjNetwork(self,trainData,epochs,batchSize):
-        """Run network given current weights and biases to calculate nodes/outputs
+    def trainNetwork(self,trainData,epochs,learnRate,batchSize,curveOpt):
+        """Train network based on training data and various parameters
+            -"trainData" is an array of tuples of (inputs,desOutputs)
+            -"epochs"
+            -"learnRate"
+            -"batchSize"
             -"curveOpt" is to specify type of normalizing curve
-            -[OPT] "inputLims" is None or an array of [n,m] to specify lower and upper linear normalizing limits, respectively
         """
         
-        n = len(trainData)
+        for n in range(epochs):
+            miniBatch = [trainData[i:i+batchSize] for i in range(0, len(trainData), batchSize)]
 
-        for j in range(epochs):
-            mini_batches = [trainData[k:k+batchSize] for k in range(0, n, batchSize)]
-
-            for mini_batch in mini_batches:
-                nabla_b = [np.zeros(b.shape) for b in self.biases]
-                nabla_w = [np.zeros(w.shape) for w in self.weights]
+            for batch in miniBatch:
+                bias = [np.zeros(b.shape) for b in self.bias]
+                wts = [np.zeros(w.shape) for w in self.wts]
         
-                for x, y in mini_batch:
-                    tempNabla_b = [np.zeros(b.shape) for b in self.biases]
-                    tempNabla_w = [np.zeros(w.shape) for w in self.weights]
+                for inputs, desOutputs in batch:
+                    tempBias = [np.zeros(b.shape) for b in self.bias]
+                    tempWts = [np.zeros(w.shape) for w in self.wts]
             
                     # feedforward
-                    activation = x
-                    activations = [x] # list to store all the activations, layer by layer
+                    self.runNetwork(curveOpt=None)
+                    activation = inputs
+                    activations = [inputs] # list to store all the activations, layer by layer
                     zs = [] # list to store all the z vectors, layer by layer
             
-                    for b, w in zip(self.biases, self.weights):
+                    for b, w in zip(self.bias, self.wts):
                         z = np.dot(w, activation)+b
                         zs.append(z)
-                        activation = sigmoid(z)
+                        activation = Misc.sigNorm(z)
                         activations.append(activation)
             
                     # backward pass
-                    delta = (activations[-1] - y) * sigmoid_prime(zs[-1])
-                    tempNabla_b[-1] = delta
-                    tempNabla_w[-1] = np.dot(delta, activations[-2].transpose())
+                    delta = (activations[-1] - desOutputs) * Misc.sigDeriv(zs[-1])
+                    tempBias[-1] = delta
+                    tempWts[-1] = np.dot(delta, activations[-2].transpose())
             
-                    # Note that the variable l in the loop below is used a little
-                    # differently to the notation in Chapter 2 of the book.  Here,
-                    # l = 1 means the last layer of neurons, l = 2 is the
-                    # second-last layer, and so on.  It's a renumbering of the
-                    # scheme in the book, used here to take advantage of the fact
-                    # that Python can use negative indices in lists.
-            
-                    for l in range(2, self.num_layers):
+                    for l in range(2, self.numLayers):
                         z = zs[-l]
-                        sp = sigmoid_prime(z)
-                        delta = np.dot(self.weights[-l+1].transpose(), delta) * sp
-                        tempNabla_b[-l] = delta
-                        tempNabla_w[-l] = np.dot(delta, activations[-l-1].transpose())
+                        sp = Misc.sigDeriv(z)
+                        delta = np.dot(self.wts[-l+1].transpose(), delta) * sp
+                        tempBias[-l] = delta
+                        tempWts[-l] = np.dot(delta, activations[-l-1].transpose())
                         
-                    nabla_b = [nb+dnb for nb, dnb in zip(nabla_b, tempNabla_b)]
-                    nabla_w = [nw+dnw for nw, dnw in zip(nabla_w, tempNabla_w)]
+                    bias = [nb+dnb for nb, dnb in zip(bias, tempBias)]
+                    wts = [nw+dnw for nw, dnw in zip(wts, tempWts)]
         
-                self.weights = [w-(eta/len(mini_batch))*nw for w, nw in zip(self.weights, nabla_w)]
-                self.biases = [b-(eta/len(mini_batch))*nb for b, nb in zip(self.biases, nabla_b)]
-        pass
+                self.wts = [w-(learnRate/len(batch))*nw for w, nw in zip(self.wts, wts)]
+                self.bias = [b-(learnRate/len(batch))*nb for b, nb in zip(self.bias, bias)]
 
 class Misc():
     
@@ -145,6 +139,8 @@ class Misc():
             normData = data / np.sqrt(1 + data ** 2)
         elif curveType == 'relu':
             normData = np.asarray([0 if data[n] < 0 else data[n] for n in range(len(data))]).reshape(len(data),1)
+        elif curveType is None:
+            normData = data
         else:
             raise Exception('ERROR: Invalid curve type specified.')
         
@@ -173,24 +169,33 @@ class Misc():
         return derivData
 
 
-inputs = [1,5,8,9,6]
-numHidNodes = [8,6]
-numOutputs = [3]
+inputs = [1,5,8]
+numHidNodes = [4,2]
+numOutputs = [2]
 
-desiredOutputs = [0,0,1]
+desOutputs = [0,1]
 normCurve = 'hyperbolic'
 
 ntwk = NeuralNetwork(inputs,numOutputs,numHidNodes)
 ntwk.layerSetup(symOpt=True)
 ntwk.runNetwork(curveOpt=normCurve,inputLims=None)
-ntwk.errorFunc(desiredOutputs)
-ntwk.adjFunc(curveOpt=normCurve)
+#ntwk.errorFunc(desOutputs)
+#ntwk.adjFunc(curveOpt=normCurve)
 
 #for n in range(1):
 #    [nodes,outputs] = runNetwork(inputs,self.wts,self.bias,lims=[-1,1],curveOpt='logistic')
-#    error = errorFunc(outputs,desiredOutputs)
+#    error = errorFunc(outputs,desOutputs)
 #    adjs = adjFunc(outputs,error,curveOpt='logistic')
 
 print(ntwk.outputs)
+print('')
+
+activation = np.asarray(inputs).reshape(len(inputs),1)
+for b, w in zip(ntwk.bias, ntwk.wts):
+    z = np.dot(w, activation)+b
+    activation = Misc.sigNorm(z)
+    print(z)
+    print(activation)
+    print('')
 
 ntwkAtt = vars(ntwk)
