@@ -3,6 +3,7 @@ import numpy as np
 # https://www.python-course.eu/neural_networks_with_python_numpy.php
 # https://towardsdatascience.com/understanding-learning-rates-and-how-it-improves-performance-in-deep-learning-d0d4059c1c10
 # https://en.wikipedia.org/wiki/Backpropagation
+# http://neuralnetworksanddeeplearning.com/chap2.html
 
 class NeuralNetwork():
     
@@ -35,13 +36,13 @@ class NeuralNetwork():
             -[OPT] "inputLims" is None or an array of [n,m] to specify lower and upper linear normalizing limits, respectively
         """
         
-        self.inputs = self.inputs if inputLims is None else Misc.linNorm(self.inputs,minLim=inputLims[0],maxLim=inputLims[1])
+        self.inputs = self.inputs if inputLims is None else Misc.linNorm(self.inputs,lims=inputLims)
         
         nodes = []
         layerInputs = self.inputs    
         for n in range(self.numLayers):
-            node = np.dot(self.wts[n],layerInputs).reshape(self.numNodes[n+1],1) + self.bias[n]
-            node = Misc.sigNorm(node,curveType=curveOpt)
+            rawNode = np.dot(self.wts[n],layerInputs).reshape(self.numNodes[n+1],1) + self.bias[n]
+            node = Misc.sigNorm(rawNode,curveType=curveOpt)
             
             nodes.append(node)
             
@@ -51,14 +52,17 @@ class NeuralNetwork():
         self.outputs = node
         self.nodes = nodes
     
-    def errorFunc(self,desOutputs):
+    def errorFunc(self,desOutputs,errorOpt='sqrd'):
         """Calculate network error based on desired outputs
             -"desOutputs" is an array of size (1,n) where n equals the number of inputs
         """
         
         desOutputs = np.reshape(desOutputs,(len(desOutputs),1))
         
-        self.error = (1/2) * np.sum((self.outputs - desOutputs) ** 2)
+        if errorOpt == 'sqrd':
+            self.error = (1/2) * np.sum((self.outputs - desOutputs) ** 2)
+        else:
+            raise Exception('ERROR: Invalid error function specified.')
     
     def adjFunc(self,curveOpt):
         """Run network given current weights and biases to calculate nodes/outputs
@@ -90,27 +94,29 @@ class NeuralNetwork():
             
                     # feedforward
                     self.runNetwork(curveOpt=None)
-                    activation = inputs
-                    activations = [inputs] # list to store all the activations, layer by layer
-                    zs = [] # list to store all the z vectors, layer by layer
+                    node = inputs
+                    nodes = [inputs]
+                    rawNodes = []
             
                     for b, w in zip(self.bias, self.wts):
-                        z = np.dot(w, activation)+b
-                        zs.append(z)
-                        activation = Misc.sigNorm(z)
-                        activations.append(activation)
+                        rawNode = np.dot(w, node)+b
+                        rawNodes.append(rawNode)
+                        node = Misc.sigNorm(rawNode)
+                        nodes.append(node)
+                    
+                    outputs = nodes[-1]
             
                     # backward pass
-                    delta = (activations[-1] - desOutputs) * Misc.sigDeriv(zs[-1])
+                    delta = (outputs - desOutputs) * Misc.sigDeriv(rawNodes[-1])
                     tempBias[-1] = delta
-                    tempWts[-1] = np.dot(delta, activations[-2].transpose())
+                    tempWts[-1] = np.dot(delta, nodes[-2].transpose())
             
-                    for l in range(2, self.numLayers):
-                        z = zs[-l]
-                        sp = Misc.sigDeriv(z)
-                        delta = np.dot(self.wts[-l+1].transpose(), delta) * sp
-                        tempBias[-l] = delta
-                        tempWts[-l] = np.dot(delta, activations[-l-1].transpose())
+                    for layer in range(2, self.numLayers):
+                        rawNode = rawNodes[-layer]
+                        nodeDeriv = Misc.sigDeriv(rawNode)
+                        delta = np.dot(self.wts[-layer+1].transpose(), delta) * nodeDeriv
+                        tempBias[-layer] = delta
+                        tempWts[-layer] = np.dot(delta, nodes[-layer-1].transpose())
                         
                     bias = [nb+dnb for nb, dnb in zip(bias, tempBias)]
                     wts = [nw+dnw for nw, dnw in zip(wts, tempWts)]
@@ -120,7 +126,10 @@ class NeuralNetwork():
 
 class Misc():
     
-    def linNorm(data,minLim=0,maxLim=1):
+    def linNorm(data,lims=[0,1]):
+        minLim = lims[0]
+        maxLim = lims[1]
+        
         dataMax = np.max(data)
         dataMin = np.min(data)
         
